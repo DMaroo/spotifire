@@ -81,8 +81,6 @@ void SpotiFire::positionChanged(QDBusMessage msg)
     updateSpotifyProgress(newPosition);
 }
 
-
-
 void SpotiFire::updateSongDuration()
 {
 	QDBusInterface iface(SPOTIFY_SERVICE, MPRIS_PATH, DBUS_INTERFACE);
