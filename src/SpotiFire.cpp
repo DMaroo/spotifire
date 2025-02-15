@@ -2,8 +2,8 @@
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusInterface>
-#include <chrono>
-#include <thread>
+#include <QTimer>
+#include <QThread>
 
 SpotiFire::SpotiFire(QObject* parent) :
 	QObject(parent)
@@ -13,16 +13,20 @@ SpotiFire::SpotiFire(QObject* parent) :
 	updateSongDuration();
 
 	dbus.connect(SPOTIFY_SERVICE, MPRIS_PATH, DBUS_INTERFACE, "PropertiesChanged", this, SLOT(songChanged(QDBusMessage)));
+	dbus.connect(SPOTIFY_SERVICE, MPRIS_PATH, MPRIS_PLAYER, "Seeked", this, SLOT(positionChanged(QDBusMessage)));
 
-	while (dbus.isConnected())
-	{
-		uint64_t progress = getSpotifyProgress();
-		updateSpotifyProgress(progress);
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	}
+    progressTimer = new QTimer(this);
+    progressTimer->setInterval(1000);
+    connect(progressTimer, &QTimer::timeout, this, [this] {
+		updateSpotifyProgress(getSpotifyProgress());
+	});
+    progressTimer->start();
 }
 
-SpotiFire::~SpotiFire() = default;
+SpotiFire::~SpotiFire()
+{
+	progressTimer->stop();
+}
 
 uint64_t SpotiFire::getSpotifyProgress()
 {
@@ -69,6 +73,12 @@ void SpotiFire::songChanged(QDBusMessage msg)
 		arg.endMapEntry();
 	}
 	arg.endMap();
+}
+
+void SpotiFire::positionChanged(QDBusMessage msg)
+{
+    uint64_t newPosition = msg.arguments().at(0).value<qint64>();
+    updateSpotifyProgress(newPosition);
 }
 
 void SpotiFire::updateSongDuration()
